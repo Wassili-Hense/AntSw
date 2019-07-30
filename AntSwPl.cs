@@ -44,8 +44,7 @@ namespace X13.Periphery {
       Topic con;
       for(int i=1; i<=8; i++) {
         con = rt.Get("con"+i.ToString(), true, _owner);
-        con.Get("ptt").SetState(false);
-        con.Get("band").SetState(0);
+        con.Get("ptt").SetState(JSC.JSObject.Null);
         con.Get("rxcfg").SetState(0);
         con.Get("txcfg").SetState(0);
       }
@@ -119,9 +118,6 @@ namespace X13.Periphery {
       if(_st==1 && cmd.addr==32 && cmd.param==128 && cmd.data!=null && cmd.data.Length==8) {
         for(int i = 0; i<8; i++) {
           _di.Get("rem"+(i+1).ToString()+"/status", true, _owner).SetState(cmd.data[i]);
-          if(cmd.data[i]>=1 && cmd.data[i]<=8) {
-            _di.Get("con"+(cmd.data[i]).ToString()+"/band", true, _owner).SetState(i+1);
-          }
           _remoteSt[i] = (byte)cmd.data[i];
         }
         _st = 2;
@@ -180,29 +176,37 @@ namespace X13.Periphery {
       switch(cmd.param) {
       case 2:  // Reset
         for(int i = 0; i < 8; i++) {
-          _remoteSt[i] = 255;
           _di.Get("rem"+(i+1).ToString()+"/status", true, _owner).SetState(255);
+          _remoteSt[i] = 255;
           _di.Get("con"+(i+1).ToString()+"/status", true, _owner).SetState(0);
-          _di.Get("con"+(i+1).ToString()+"/band", true, _owner).SetState(0);
           _di.Get("con"+(i+1).ToString()+"/rxcfg", true, _owner).SetState(0);
+          _rxCfg[i] = 0;
           _di.Get("con"+(i+1).ToString()+"/txcfg", true, _owner).SetState(0);
+          _txCfg[i] = 0;
         }
         break;
       }
     }
     private void OnEventConsole(Command cmd, byte addr) {
       if(cmd.param>=64 && cmd.param<=95) {
-        int rem = (cmd.param - 60) / 4;
+        int rem = (cmd.param - 64) / 4;
         if((cmd.param & 3)==0) {
           if(_remoteSt[rem] == addr) {
-            _di.Get("con"+addr.ToString()+"/band", true, _owner).SetState(0);
-            _di.Get("rem"+rem.ToString()+"/status", true, _owner).SetState(0);
+            _di.Get("rem"+(rem+1).ToString()+"/status", true, _owner).SetState(0);
             _remoteSt[rem] = 0;
+            _di.Get("con"+addr.ToString()+"/status", true, _owner).SetState(0);
+            _di.Get("con"+addr.ToString()+"/rxcfg", true, _owner).SetState(0);
+            _rxCfg[addr-1] = 0;
+            _di.Get("con"+addr.ToString()+"/txcfg", true, _owner).SetState(0);
+            _txCfg[addr-1] = 0;
           }
         }else if((cmd.param & 3)==1) {
-          _di.Get("con"+(addr).ToString()+"/band", true, _owner).SetState(rem);
-          _di.Get("rem"+rem.ToString()+"/status", true, _owner).SetState(addr);
+          _di.Get("rem"+(rem+1).ToString()+"/status", true, _owner).SetState(addr);
           _remoteSt[rem] = addr;
+          _di.Get("con"+addr.ToString()+"/rxcfg", true, _owner).SetState(1);
+          _rxCfg[addr-1] = 1;
+          _di.Get("con"+addr.ToString()+"/txcfg", true, _owner).SetState(1);
+          _txCfg[addr-1] = 1;
         }
       } else if(cmd.param>=96 && cmd.param<=127) {
         int cfg = (cmd.param - 92) / 4;
@@ -219,6 +223,7 @@ namespace X13.Periphery {
           break;
         case 1: // green
           _di.Get("con"+addr.ToString()+"/rxcfg", true, _owner).SetState(cfg);
+          _rxCfg[addr-1] = (byte)cfg;
           if(_txCfg[addr-1] == cfg) {
             _di.Get("con"+addr.ToString()+"/txcfg", true, _owner).SetState(0);
             _txCfg[addr-1] = 0;
@@ -230,23 +235,30 @@ namespace X13.Periphery {
             _rxCfg[addr-1] = 0;
           }
           _di.Get("con"+addr.ToString()+"/txcfg", true, _owner).SetState(cfg);
+          _txCfg[addr-1] = (byte)cfg;
           break;
         case 3: // yellow
           _di.Get("con"+addr.ToString()+"/rxcfg", true, _owner).SetState(cfg);
+          _rxCfg[addr-1] = (byte)cfg;
           _di.Get("con"+addr.ToString()+"/txcfg", true, _owner).SetState(cfg);
+          _txCfg[addr-1] = (byte)cfg;
           break;
         }
       } else {
         switch(cmd.param) {
         case 5: // Device Online
           _di.Get("con"+(addr).ToString()+"/status", true, _owner).SetState(0);
+          _di.Get("con"+addr.ToString()+"/rxcfg", true, _owner).SetState(0);
+          _rxCfg[addr-1] = 0;
+          _di.Get("con"+addr.ToString()+"/txcfg", true, _owner).SetState(0);
+          _txCfg[addr-1] = 0;
           break;
         }
       }
     }
     private void OnEventRemote(Command cmd) {
-      byte rem = (byte)(cmd.addr-16);
-      byte con = _remoteSt[rem-1];
+      byte rem = (byte)(cmd.addr-17);
+      byte con = _remoteSt[rem];
       switch(cmd.param) {
       case 3: // Ptt Off
         _di.Get("con"+con.ToString()+"/status", true, _owner).SetState(2);
@@ -255,12 +267,73 @@ namespace X13.Periphery {
         _di.Get("con"+con.ToString()+"/status", true, _owner).SetState(3);
         break;
       case 5: // Device Online
-        _di.Get("rem"+rem.ToString()+"/status", true, _owner).SetState(0);
+        _di.Get("rem"+(rem+1).ToString()+"/status", true, _owner).SetState(0);
         break;
       }
     }
     private void OnFail(Command cmd) {
-      throw new NotImplementedException();
+      int addr;
+      switch(cmd.addr) {
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 8:
+        switch(cmd.param) {
+        case 41:
+          addr = cmd.addr-1;
+          _di.Get("con"+(addr+1).ToString()+"/status", true, _owner).SetState(0);
+          _di.Get("con"+(addr+1).ToString()+"/rxcfg", true, _owner).SetState(0);
+          _rxCfg[addr] = 0;
+          _di.Get("con"+(addr+1).ToString()+"/txcfg", true, _owner).SetState(0);
+          _txCfg[addr] = 0;
+          break;
+        }
+        break;
+      case 17:
+      case 18:
+      case 19:
+      case 20:
+      case 21:
+      case 22:
+      case 23:
+      case 24:
+        switch(cmd.param) {
+        case 41:
+          addr = cmd.addr - 17;
+          if(_remoteSt[addr]>=1 && _remoteSt[addr]<=8) {
+            int con = _remoteSt[addr]-1;
+            _di.Get("con"+(con+1).ToString()+"/status", true, _owner).SetState(0);
+            _di.Get("con"+(con+1).ToString()+"/rxcfg", true, _owner).SetState(0);
+            _rxCfg[con] = 0;
+            _di.Get("con"+(con+1).ToString()+"/txcfg", true, _owner).SetState(0);
+            _txCfg[con] = 0;
+          }
+          _di.Get("rem"+(addr+1).ToString()+"/status", true, _owner).SetState(255);
+          _remoteSt[addr] = 255;
+          break;
+        case 48:
+        case 49:
+        case 50:
+        case 51:
+          addr = cmd.addr - 17;
+          if(_remoteSt[addr]>=1 && _remoteSt[addr]<=8) {
+            int con = _remoteSt[addr]-1;
+            _di.Get("con"+(con+1).ToString()+"/status", true, _owner).SetState(0);
+            _di.Get("con"+(con+1).ToString()+"/rxcfg", true, _owner).SetState(0);
+            _rxCfg[con] = 0;
+            _di.Get("con"+(con+1).ToString()+"/txcfg", true, _owner).SetState(0);
+            _txCfg[con] = 0;
+          }
+          _di.Get("rem"+(addr+1).ToString()+"/status", true, _owner).SetState(0);
+          _remoteSt[addr] = 0;
+          break;
+        }
+        break;
+      }
     }
 
     private void Request(Perform p, SubRec sr) {
@@ -274,6 +347,7 @@ namespace X13.Periphery {
         if(p.src.GetState().ValueType==JSC.JSValueType.Boolean) {
           _transport.Write(new Command(CommandCode.Event, (byte)(32+con), (byte)(((bool)p.src.GetState())?4:3)));  
         }
+        p.src.SetState(JSC.JSObject.Null, _owner);
         break;
       case "band":
         if(p.src.GetState().IsNumber && (tmp = (int)p.src.GetState())>0 && tmp <= 8) {
