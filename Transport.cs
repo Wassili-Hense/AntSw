@@ -76,10 +76,19 @@ namespace X13.Periphery {
                 cmd = Command.Parse((CommandCode)_inBuf[0], msg);
                 if(cmd!=null) {
                   _inCmds.Enqueue(cmd);
+                } else if(_pl.Verbose) {
+                  Log.Warning("AntSw R "+ msg);
                 }
+              } else if(_pl.Verbose) {
+                msg = ASCIIEncoding.ASCII.GetString(_inBuf, 0, _inCnt-1);
+                Log.Warning("AntSw R"+ msg);
               }
               _inCnt = 0;
             } else if(_inCnt>=_inBuf.Length) {
+              if(_pl.Verbose) {
+                msg = ASCIIEncoding.ASCII.GetString(_inBuf, 0, _inCnt-1);
+                Log.Warning("AntSw R"+ msg);
+              }
               _inCnt = -1;
             } else if(_inCnt>=0){
               char ch = (char)b;

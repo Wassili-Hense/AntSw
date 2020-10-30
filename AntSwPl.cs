@@ -20,6 +20,8 @@ namespace X13.Periphery {
     private int _st;
     private byte[] _remoteSt, _rxCfg, _txCfg;
     private SubRec _reqSub;
+    private Topic _enableT;
+    private DateTime _to;
 
     #region IPlugModul Members
     public void Init() {
@@ -50,6 +52,11 @@ namespace X13.Periphery {
       }
       _di = Topic.root.Get("/export/out", true, _owner);
       _reqSub = rt.Subscribe(SubRec.SubMask.All | SubRec.SubMask.Value, Request);
+      _enableT = _di.Get("enable");
+      if(_enableT.GetState().ValueType != JSC.JSValueType.Boolean) {
+        _enableT.SetAttribute(Topic.Attribute.DB | Topic.Attribute.Required);
+        _enableT.SetState(true);
+      }
       _transport = new Transport(this);
     }
     public void Stop() {
@@ -82,18 +89,31 @@ namespace X13.Periphery {
       case 0:
         _transport.Write(new Command(CommandCode.Get, 32, 128));  // Get Remote statuses
         _st = 1;
+        _to = DateTime.Now.AddSeconds(6);
         break;
       case 2:
         _transport.Write(new Command(CommandCode.Get, 32, 129));  // Get Console statuses
         _st = 3;
+        _to = DateTime.Now.AddSeconds(6);
         break;
       case 4:
         _transport.Write(new Command(CommandCode.Get, 32, 130));  // Get RxAntCfg
         _st = 5;
+        _to = DateTime.Now.AddSeconds(6);
         break;
       case 6:
         _transport.Write(new Command(CommandCode.Get, 32, 131));  // Get TxAntCfg
         _st = 7;
+        _to = DateTime.Now.AddSeconds(6);
+        break;
+      case 1:
+      case 3:
+      case 5:
+      case 7:
+        if(DateTime.Now > _to) {
+          Log.Warning("AntSw Timeout. State = {0}", _st);
+          _st = 0;
+        }
         break;
       }
     }
@@ -339,7 +359,8 @@ namespace X13.Periphery {
     private void Request(Perform p, SubRec sr) {
       byte con;
       int tmp;
-      if(p.prim==_owner || p.src.path.Length < 17 || !p.src.path.StartsWith("/export/req/con") || !byte.TryParse(p.src.path.Substring(15, 1), out con) || con==0 || con > 8) {
+      var en = _enableT.GetState();
+      if((en.ValueType == JSC.JSValueType.Boolean && !((bool)en)) || p.prim==_owner || p.src.path.Length < 17 || !p.src.path.StartsWith("/export/req/con") || !byte.TryParse(p.src.path.Substring(15, 1), out con) || con==0 || con > 8) {
         return;
       }
       switch(p.src.name) {

@@ -16,7 +16,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\H04\bin\</OutputPath>
+    <OutputPath>..\H04\Output\bin\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -24,14 +24,14 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\H04\bin\</OutputPath>
+    <OutputPath>..\H04\Output\bin\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="enviriot">
-      <HintPath>..\H04\bin\enviriot.exe</HintPath>
+      <HintPath>..\H04\Output\bin\enviriot.exe</HintPath>
     </Reference>
     <Reference Include="NiL.JS, Version=2.5.1339.1, Culture=neutral, PublicKeyToken=fa941a7c2a4de689, processorArchitecture=MSIL">
       <HintPath>packages\NiL.JS.2.5.1339.1\lib\net40\NiL.JS.dll</HintPath>
