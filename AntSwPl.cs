@@ -52,7 +52,7 @@ namespace X13.Periphery {
       }
       _di = Topic.root.Get("/export/out", true, _owner);
       _reqSub = rt.Subscribe(SubRec.SubMask.All | SubRec.SubMask.Value, Request);
-      _enableT = _di.Get("enable");
+      _enableT = Topic.root.Get("/local/asw/enable");
       if(_enableT.GetState().ValueType != JSC.JSValueType.Boolean) {
         _enableT.SetAttribute(Topic.Attribute.DB | Topic.Attribute.Required);
         _enableT.SetState(true);
