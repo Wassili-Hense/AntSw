@@ -42,6 +42,12 @@ namespace X13.Periphery {
         _verbose.SetState(false);
 #endif
       }
+      _enableT = _owner.Get("remote");
+      if(_enableT.GetState().ValueType != JSC.JSValueType.Boolean) {
+        _enableT.SetAttribute(Topic.Attribute.DB | Topic.Attribute.Required);
+        _enableT.SetState(true);
+      }
+
       var rt = Topic.root.Get("/export/req", true, _owner);
       Topic con;
       for(int i=1; i<=8; i++) {
@@ -52,11 +58,6 @@ namespace X13.Periphery {
       }
       _di = Topic.root.Get("/export/out", true, _owner);
       _reqSub = rt.Subscribe(SubRec.SubMask.All | SubRec.SubMask.Value, Request);
-      _enableT = Topic.root.Get("/local/asw/enable");
-      if(_enableT.GetState().ValueType != JSC.JSValueType.Boolean) {
-        _enableT.SetAttribute(Topic.Attribute.DB | Topic.Attribute.Required);
-        _enableT.SetState(true);
-      }
       _transport = new Transport(this);
     }
     public void Stop() {
